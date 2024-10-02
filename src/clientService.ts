@@ -1,0 +1,207 @@
+import { Observable, Subscription } from "rxjs";
+import { TypeNotRegisteredError } from "./error";
+import { IBaseModel } from "./model";
+import { HttpClient } from "./httpClient";
+import { RepositoryBase } from "./repositoryBase";
+
+class ClientService<T extends IBaseModel = IBaseModel> {
+  private map = new Map<string, RepositoryBase<T>>();
+  private http = new HttpClient();
+
+  private baseUrl?: string;
+
+  /**
+   * config the base url of the server
+   * @param baseUrl the base url of the server
+   */
+  setBaseUrl(baseUrl: string) {
+    this.baseUrl = baseUrl;
+    return this;
+  }
+
+  private getRepo(data: { type: string }) {
+    const repo = this.map.get(data.type);
+    if (!repo) {
+      throw new TypeNotRegisteredError(data.type);
+    }
+    return repo;
+  }
+  private tryGetRepo(data: { type: string }) {
+    return this.map.get(data.type);
+  }
+
+  /**
+   * register new type of entity to clientService
+   * @param types the type of entity to register
+   * @param options updateDataOnChange: specifies if when the data change you want to emit value to `select$` method. this is good to keep the app up to date without polling
+   */
+  register(
+    types: string | string[],
+    options?: { updateDataOnChange?: boolean; pollingInterval?: number; pollingRetries?: number }
+  ) {
+    (typeof types == "string" ? [types] : types).forEach((type) => {
+      if (this.map.has(type)) {
+        return;
+      }
+      if (!this.baseUrl) {
+        throw new Error("No base URL, please configure using 'setBaseUrl()' method");
+      }
+      const repo = new RepositoryBase<T>(this.http, this.baseUrl + "/" + type, {
+        interval: options?.pollingInterval,
+        numberOfRetries: options?.pollingRetries,
+      });
+      repo.updateDataOnChange = options?.updateDataOnChange ?? true;
+      this.map.set(type, repo);
+      repo.getAll().subscribe();
+    });
+  }
+
+  private pollingSubscriptionMap = new Map<string, Subscription>();
+  private saveSubscription(type: string, repo: RepositoryBase<T>) {
+    if (this.pollingSubscriptionMap.has(type)) return;
+    const subscription = repo.polling.observable.subscribe();
+    this.pollingSubscriptionMap.set(type, subscription);
+  }
+  private removeSubscription(type: string) {
+    if (this.pollingSubscriptionMap.has(type)) {
+      this.pollingSubscriptionMap.get(type)?.unsubscribe();
+      this.pollingSubscriptionMap.delete(type);
+    }
+  }
+
+  /** start and stop polling data from server. for all or by type */
+  polling = {
+    /**
+     * start polling data from backend.
+     * - if type is not specified, start polling for all registered types
+     * - if type is specified, start polling for specific type
+     * @param type the type that you want to poll
+     */
+    start: (type?: string) => {
+      if (type) {
+        this.saveSubscription(type, this.getRepo({ type }));
+      } else {
+        [...this.map.entries()].forEach(([type, repo]) => {
+          this.saveSubscription(type, repo);
+        });
+      }
+    },
+    /**
+     * stop polling data from backend
+     * - if type is not specified, stop polling for all registered types
+     * - if type is specified, stop polling for specific type
+     * @param type the type that you want to stop polling
+     */
+    stop: (type?: string) => {
+      if (type) {
+        this.removeSubscription(type);
+      } else {
+        [...this.map.entries()].forEach(([type, _]) => {
+          this.removeSubscription(type);
+        });
+      }
+    },
+  };
+
+  /**
+   * listen for data from backend. If there are no changes to the data, this method will not emit value
+   * @param type the type that you want to listen
+   * @returns observable with an array of the data
+   */
+  select$<K extends T = T>(type: string): Observable<K[]> {
+    return this.getRepo({ type }).data$.asObservable() as Observable<K[]>;
+  }
+
+  /**
+   * create new entity
+   * - this is an alias to `addOne` method
+   * @param data the entity to create
+   * @param onSuccess notify with the message form the backend
+   */
+  createEntity<K extends T = T>(data: K, onSuccess?: (x: any) => void) {
+    this.addOne(data).subscribe(onSuccess);
+  }
+  /**
+   * update an existing entity to entities
+   * - this is an alias to `updateOne` or `updateMany` method
+   * @param data the data to update. one or array
+   * @param onSuccess notify with the message form the backend
+   */
+  updateEntity<K extends T = T>(data: K | K[], onSuccess?: (x: any) => void) {
+    if (Array.isArray(data) && data.length > 0) {
+      this.updateMany(data[0].type, data).subscribe(onSuccess);
+    } else {
+      this.updateOne(data as K).subscribe(onSuccess);
+    }
+  }
+  /**
+   * delete entity
+   * - this is an alias for `deleteOne` method
+   * @param data the entity to delete. the important part is the `id` property
+   * @param onSuccess notify with the message form the backend
+   */
+  deleteEntity<K extends T = T>(data: K, onSuccess?: (x: any) => void) {
+    this.deleteOne(data).subscribe(onSuccess);
+  }
+
+  getOne(data: T) {
+    return this.getRepo(data).getOne(data.id);
+  }
+  getAll<K extends T = T>(type: string): Observable<K[]> {
+    return this.getRepo({ type }).getAll() as Observable<K[]>;
+  }
+  addOne(data: T) {
+    return this.getRepo(data).addOne(data);
+  }
+  updateOne(data: T) {
+    return this.getRepo(data).updateOne(data);
+  }
+  updateMany(type: string, data: T[]) {
+    return this.getRepo({ type }).updateMany(data);
+  }
+  deleteOne(data: T) {
+    return this.getRepo(data).deleteOne(data.id);
+  }
+  deleteAll(type: string) {
+    return this.getRepo({ type }).deleteAll();
+  }
+
+  /**
+   * send a custom http request to the server.
+   * the route will look like this: `baseUrl`/`type`/`action`/`config.params`
+   * @param type
+   * @param action
+   * @param method
+   * @param config you can pass data, or params
+   * @returns observable with the data from the server
+   */
+  customAction(
+    type: string,
+    action: string,
+    method: "GET" | "POST" | "PUT" | "DELETE",
+    config?: { data?: any; params?: string[] }
+  ): Observable<any> {
+    let _action = action ? action + "/" : "";
+    if (!this.baseUrl) {
+      throw new Error("No base URL, please configure using 'setBaseUrl()' method");
+    }
+    let url = this.baseUrl + "/" + type + "/" + _action;
+    if (config?.params) {
+      url += config.params.join("/");
+    }
+    switch (method) {
+      case "GET":
+        return this.http.get(url);
+      case "POST":
+        return this.http.post(url, config?.data);
+      case "PUT":
+        return this.http.put(url, config?.data);
+      case "DELETE":
+        return this.http.delete(url + "/" + config?.data);
+      default:
+        throw new Error("Unknown method");
+    }
+  }
+}
+
+export const clientService = new ClientService();

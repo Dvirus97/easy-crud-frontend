@@ -1,0 +1,19 @@
+{
+  "name": "easy-crud-frontend",
+  "version": "1.0.0",
+  "description": "easy way to build a frontend crud repository",
+  "main": "index.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "crud",
+    "frontend"
+  ],
+  "author": "dvircoh97",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.7.7",
+    "rxjs": "^7.8.1"
+  }
+}
