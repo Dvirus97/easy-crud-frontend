@@ -32,5 +32,5 @@ export function smartPolling<R>(pollFn: () => Observable<R>, _interval: number =
     };
   }).pipe(share({ resetOnRefCountZero: () => of(true) }));
 
-  return { observable: sharedPolling };
+  return sharedPolling;
 }

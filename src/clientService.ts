@@ -20,6 +20,9 @@ class ClientService<T extends IBaseModel = IBaseModel> {
   }
 
   private getRepo(data: { type: string }) {
+    if (!data.type) {
+      throw new Error("there is not `type` property. Please provide a type");
+    }
     const repo = this.map.get(data.type);
     if (!repo) {
       throw new TypeNotRegisteredError(data.type);
@@ -33,11 +36,16 @@ class ClientService<T extends IBaseModel = IBaseModel> {
   /**
    * register new type of entity to clientService
    * @param types the type of entity to register
-   * @param options updateDataOnChange: specifies if when the data change you want to emit value to `select$` method. this is good to keep the app up to date without polling
+   * @param options -
+   * - override: if true, data will emit every time. if false, data will be emitted only if changed
+   * - updateDataOnChange: specifies if when the data change you want to emit value to `select$` method.
+   * this is good to keep the app up to date without polling
+   * - pollingInterval: specifies the interval of polling
+   * - pollingRetries: specifies the number of times the polling keep try to execute in case of error.
    */
   register(
     types: string | string[],
-    options?: { updateDataOnChange?: boolean; pollingInterval?: number; pollingRetries?: number }
+    options?: { updateDataOnChange?: boolean; pollingInterval?: number; pollingRetries?: number; override?: boolean }
   ) {
     (typeof types == "string" ? [types] : types).forEach((type) => {
       if (this.map.has(type)) {
@@ -47,8 +55,9 @@ class ClientService<T extends IBaseModel = IBaseModel> {
         throw new Error("No base URL, please configure using 'setBaseUrl()' method");
       }
       const repo = new RepositoryBase<T>(this.http, this.baseUrl + "/" + type, {
-        interval: options?.pollingInterval,
-        numberOfRetries: options?.pollingRetries,
+        pollingInterval: options?.pollingInterval,
+        pollingNumOfRetries: options?.pollingRetries,
+        override: options?.override,
       });
       repo.updateDataOnChange = options?.updateDataOnChange ?? true;
       this.map.set(type, repo);
@@ -59,7 +68,7 @@ class ClientService<T extends IBaseModel = IBaseModel> {
   private pollingSubscriptionMap = new Map<string, Subscription>();
   private saveSubscription(type: string, repo: RepositoryBase<T>) {
     if (this.pollingSubscriptionMap.has(type)) return;
-    const subscription = repo.polling.observable.subscribe();
+    const subscription = repo.polling.subscribe();
     this.pollingSubscriptionMap.set(type, subscription);
   }
   private removeSubscription(type: string) {
@@ -144,24 +153,59 @@ class ClientService<T extends IBaseModel = IBaseModel> {
     this.deleteOne(data).subscribe(onSuccess);
   }
 
+  /**
+   * **http get "baseUrl/type/one/id"**
+   * @param data must have `id` and `type`
+   */
   getOne(data: T) {
+    if (!data.id) {
+      throw new Error("there is not `id` property. Please provide an id");
+    }
     return this.getRepo(data).getOne(data.id);
   }
+  /**
+   * **http get "baseUrl/type/all/id"**
+   * @param type the type of the entity
+   */
   getAll<K extends T = T>(type: string): Observable<K[]> {
     return this.getRepo({ type }).getAll() as Observable<K[]>;
   }
+  /**
+   * **http post "baseUrl/type"**
+   * @param data the value to create. must have `id` and `type`
+   */
   addOne(data: T) {
     return this.getRepo(data).addOne(data);
   }
+  /**
+   * **http put "baseUrl/type/one/id"**
+   * @param data the data to update, must have `id` and `type`
+   */
   updateOne(data: T) {
     return this.getRepo(data).updateOne(data);
   }
+  /**
+   * **http put "baseUrl/type/many"**
+   * @param type the type of the entities
+   * @param data an array of all the entities to update
+   */
   updateMany(type: string, data: T[]) {
     return this.getRepo({ type }).updateMany(data);
   }
+  /**
+   * **http delete "baseUrl/type"**
+   * @param data the entity to delete. must have `id` and `type`
+   */
   deleteOne(data: T) {
+    if (!data.id) {
+      throw new Error("there is not `id` property. Please provide an id");
+    }
     return this.getRepo(data).deleteOne(data.id);
   }
+  /**
+   * ** http delete "baseUrl/type/all" **
+   * @param type the type of entity to clear
+   */
   deleteAll(type: string) {
     return this.getRepo({ type }).deleteAll();
   }

@@ -1,6 +1,5 @@
 export type IBaseModel = {
-  id: string;
+  id?: string;
   type: string;
   version?: number;
-  lastUpdate?: number;
 };

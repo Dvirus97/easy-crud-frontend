@@ -6,32 +6,33 @@ This package help create fast basic curd api.
 
 use `clientService`
 
+extend `IBaseModel` in your types for this package
+
 ```ts
 // clientService is a singleton service
 const service = clientService;
 // set the url of the server
 service.setBaseUrl("http://localhost:3010");
 
-// this is a short way
+// you can also write it like this:
 const service = clientServices.setBaseUrl("http://localhost:3010");
 
 // register entity type to the service.
+service.register("person")
 // you can pass options
 service.register("person", {
     updateDataOnChange: true;
     pollingInterval: 2000;
-    pollingRetries: 2
+    pollingRetries: 2,
+    override: true
 });
 
-// you can also register many types at ones
-service.register(["person", 'car', 'table'], {
-    updateDataOnChange: true;
-    pollingInterval: 2000;
-    pollingRetries: 2
-});
+// you can also register many types at ones.
+// if you pass options, the types will share the same options
+service.register(['person', 'car', 'table']);
 
-// listen to changes of this type form the server
-// this method emit value only if there are changes in the data
+// listen to changes of this type from the server
+// this method emit value only if there are changes in the data base on `version` property
 service.select$("person").subscribe(...)
 ```
 
@@ -78,4 +79,69 @@ but there it also custom action
 
 ```ts
 service.customAction("person", "hello", "POST", { data: "world" }).subscribe();
+```
+
+---
+
+# Other things in this package
+
+## HttpClient
+
+use `axios` and `rxjs` to create observable based http request.
+
+```ts
+const http = new HttpClient();
+http.get("path").subscribe((res) => console.log(res));
+http.post("path", data).subscribe((res) => console.log(res));
+http.put("path", data).subscribe((res) => console.log(res));
+http.patch("path", data).subscribe((res) => console.log(res));
+http.delete("path").subscribe((res) => console.log(res));
+```
+
+---
+
+## Compare
+
+### compareItems()
+
+pass 2 objects and check if the are the same.
+if there is a `version` property, it compare by version
+
+> a.version == b.version
+
+if there is no `version` property, it compare by json
+
+> JSON.stringify(a) == JSON.stringify(b)
+
+### isDataChanged()
+
+pass 2 arrays and check if they are equal.
+it use `compareItems()` function to compare
+
+---
+
+## smartPolling()
+
+call a function in an interval.
+if more than one subscribers are listening, they will get the same data.
+
+```ts
+function foo() {
+  const name = "value";
+  return of(name); // of() in rxjs convert any value to observable
+}
+
+const polling = smartPolling(foo, 1000);
+const subscription = polling.subscribe((x) => console.log(x));
+
+setTimeout(() => subscription.unsubscribe(), 4000);
+
+/*
+logs:
+value // after one sec (1)
+value // after one sec (2)
+value // after one sec (3)
+value // after one sec (4)
+//  stop polling
+ */
 ```
