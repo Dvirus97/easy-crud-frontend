@@ -1,4 +1,4 @@
-import { Observable, Subscription } from "rxjs";
+import { map, Observable, of, Subscription } from "rxjs";
 import { TypeNotRegisteredError } from "./error";
 import { IBaseModel } from "./model";
 import { HttpClient } from "./httpClient";
@@ -119,6 +119,11 @@ class ClientService<T extends IBaseModel = IBaseModel> {
    */
   select$<K extends T = T>(type: string): Observable<K[]> {
     return this.getRepo({ type }).data$.asObservable() as Observable<K[]>;
+  }
+
+  selectOne$<K extends T = T>(type: string, id: string): Observable<K | undefined> {
+    if (!type || !id) return of(undefined);
+    return this.getRepo({ type }).data$.pipe(map((x) => x.find((x) => x.id == id))) as Observable<K>;
   }
 
   /**

@@ -4,18 +4,25 @@
 
 This package help create fast basic curd api.
 
-use `clientService`
-
 extend `IBaseModel` in your types for this package
+
+```ts
+interface Person extends IBaseModel {
+  name: string;
+  age: number;
+}
+```
+
+use `clientService`
 
 ```ts
 // clientService is a singleton service
 const service = clientService;
 // set the url of the server
-service.setBaseUrl("http://localhost:3010");
+service.setBaseUrl("http://localhost:5000");
 
 // you can also write it like this:
-const service = clientServices.setBaseUrl("http://localhost:3010");
+const service = clientServices.setBaseUrl("http://localhost:5000");
 
 // register entity type to the service.
 service.register("person")
@@ -34,9 +41,11 @@ service.register(['person', 'car', 'table']);
 // listen to changes of this type from the server
 // this method emit value only if there are changes in the data base on `version` property
 service.select$("person").subscribe(...)
+service.selectOne$("person", "id1").subscribe(...)
 ```
 
 you can use polling to keep the data up to date
+polling is an interval that get data from the server.
 
 ```ts
 // start polling only for a specified type
@@ -65,7 +74,7 @@ there are more operations
 ```ts
 const p1 = { id: "1", type: "person", name: "name" };
 
-// all of there methods are one time stream. they are complete after one emit
+// all of these methods are one time stream. they are complete after one emit
 getOne(p1).subscribe();
 getAll("person").subscribe();
 addOne(p1).subscribe();
@@ -79,6 +88,31 @@ but there it also custom action
 
 ```ts
 service.customAction("person", "hello", "POST", { data: "world" }).subscribe();
+```
+
+#### For Angular
+
+if you want this service as an Angular service you can do this:
+
+```ts
+import { InjectionToken } from "@angular/core";
+import { clientService } from "easy-crud-frontend";
+
+const service = clientService.setBaseUrl("http://localhost:5000");
+
+export const ClientService = new InjectionToken("ClientService", {
+  factory() {
+    return service;
+  },
+});
+```
+
+and know you have access to ClientService as an Angular Service.
+
+```ts
+class AppComponent {
+  clientService = inject(ClientService);
+}
 ```
 
 ---
