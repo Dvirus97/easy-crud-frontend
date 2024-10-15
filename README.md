@@ -20,6 +20,11 @@ use `clientService`
 const service = clientService;
 // set the url of the server
 service.setBaseUrl("http://localhost:5000");
+// you can also change the default path of each route
+service.setBaseUrl("http://localhost:5000",{
+  getAll: "/getAll",
+  delete: "/"
+});
 
 // you can also write it like this:
 const service = clientServices.setBaseUrl("http://localhost:5000");

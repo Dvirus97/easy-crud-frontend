@@ -1,8 +1,8 @@
 {
   "name": "easy-crud-frontend",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "easy way to build a frontend crud repository",
-  "main": "/dist/index.js",
+  "main": "./dist/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },

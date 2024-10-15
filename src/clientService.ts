@@ -1,6 +1,6 @@
 import { map, Observable, of, Subscription } from "rxjs";
 import { TypeNotRegisteredError } from "./error";
-import { IBaseModel } from "./model";
+import { IBaseModel, IRouteOptions } from "./model";
 import { HttpClient } from "./httpClient";
 import { RepositoryBase } from "./repositoryBase";
 
@@ -9,13 +9,32 @@ class ClientService<T extends IBaseModel = IBaseModel> {
   private http = new HttpClient();
 
   private baseUrl?: string;
-
+  private routeOptions?: IRouteOptions;
   /**
    * config the base url of the server
    * @param baseUrl the base url of the server
+   * @param options  specify the route to the server for each operation
+   * ### default
+   * ```
+   * getOne : (get) baseUrl/one/id
+   * getAll : (get) baseUrl/all
+   * addOne : (post) baseUrl/one
+   * updateOne : (put) baseUrl/one
+   * updateMany : (put) baseUrl/many
+   * deleteOne : (delete) baseUrl/one/id
+   * deleteAll : (delete) baseUrl/all
+   * ```
+   *  example:
+   * ```ts
+   * setBaseUrl("http://localhost:5000", {
+   *  getOne: "/"
+   *  getAll: "getAll"
+   * })
+   * ```
    */
-  setBaseUrl(baseUrl: string) {
+  setBaseUrl(baseUrl: string, options?: IRouteOptions) {
     this.baseUrl = baseUrl;
+    this.routeOptions = options;
     return this;
   }
 
@@ -58,6 +77,7 @@ class ClientService<T extends IBaseModel = IBaseModel> {
         pollingInterval: options?.pollingInterval,
         pollingNumOfRetries: options?.pollingRetries,
         override: options?.override,
+        routeOptions: this.routeOptions,
       });
       repo.updateDataOnChange = options?.updateDataOnChange ?? true;
       this.map.set(type, repo);

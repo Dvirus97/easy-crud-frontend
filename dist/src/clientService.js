@@ -49,9 +49,28 @@ class ClientService {
     /**
      * config the base url of the server
      * @param baseUrl the base url of the server
+     * @param options  specify the route to the server for each predation
+     * ### default
+     * ```
+     * getOne : (get) baseUrl/one/id
+     * getAll : (get) baseUrl/all
+     * addOne : (post) baseUrl/one
+     * updateOne : (put) baseUrl/one
+     * updateMany : (put) baseUrl/many
+     * deleteOne : (delete) baseUrl/one/id
+     * deleteAll : (delete) baseUrl/all
+     * ```
+     *  example:
+     * ```ts
+     * setBaseUrl("http://localhost:5000", {
+     *  getOne: "/"
+     *  getAll: "getAll"
+     * })
+     * ```
      */
-    setBaseUrl(baseUrl) {
+    setBaseUrl(baseUrl, options) {
         this.baseUrl = baseUrl;
+        this.routeOptions = options;
         return this;
     }
     getRepo(data) {
@@ -90,6 +109,7 @@ class ClientService {
                 pollingInterval: options === null || options === void 0 ? void 0 : options.pollingInterval,
                 pollingNumOfRetries: options === null || options === void 0 ? void 0 : options.pollingRetries,
                 override: options === null || options === void 0 ? void 0 : options.override,
+                routeOptions: this.routeOptions,
             });
             repo.updateDataOnChange = (_a = options === null || options === void 0 ? void 0 : options.updateDataOnChange) !== null && _a !== void 0 ? _a : true;
             this.map.set(type, repo);
