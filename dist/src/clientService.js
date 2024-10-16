@@ -49,7 +49,7 @@ class ClientService {
     /**
      * config the base url of the server
      * @param baseUrl the base url of the server
-     * @param options  specify the route to the server for each predation
+     * @param options  specify the route to the server for each operation
      * ### default
      * ```
      * getOne : (get) baseUrl/one/id

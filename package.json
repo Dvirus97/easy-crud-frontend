@@ -1,8 +1,12 @@
 {
   "name": "easy-crud-frontend",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "easy way to build a frontend crud repository",
   "main": "./dist/index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Dvirus97/easy-crud-frontend.git"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
